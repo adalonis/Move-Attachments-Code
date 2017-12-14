@@ -1,0 +1,59 @@
+@isTest
+public class MoveAttachmentsTest {
+    public static Task testerTask;
+    static testMethod void TaskAttachmentTest(){
+        Vehicles__c pp = new Vehicles__c(Name='V-1600',VIN__c='721822344', Year__c='2010',
+                                         Vehicle_Type__c='Honda',No_of_Cyl__c	='4',Model__c ='2003');
+        insert pp;
+        
+        Task task = new Task();
+		task.WhatId = pp.Id;
+		task.Subject = 'Other';
+		task.status = 'Not Started';
+        task.description = 'Annual Budget';
+		insert task;     
+           
+        Attachment anAttachment = new Attachment();
+        anAttachment.Name='Annual Budget';
+        Blob bodyBlob=Blob.valueOf('The annual budget');
+        anAttachment.Body=bodyBlob;
+        anAttachment.ParentId=task.Id;
+        insert anAttachment;
+            
+        List<Attachment> attachments=[select id from Attachment where Name =: anAttachment.Name];
+        System.assertEquals(1, attachments.size());
+        
+      	Attachment at = [Select Body, Id, Name, OwnerId,ParentId From Attachment LIMIT 1];
+        
+       	List<ContentDocument> aDoc = new List<ContentDocument>();     
+        ContentDocument cd = new ContentDocument();
+        aDoc.add(cd);
+       	String parentId = cd.ParentId; 
+
+        ContentVersion cv = new ContentVersion();
+        cv.ContentLocation = 'S';
+        cv.Origin= 'H';
+        cv.OwnerId = at.OwnerId;
+        cv.Title = 'Budget';
+        cv.PathOnClient ='Budget.txt';
+        cv.VersionData=Blob.valueOf('I am a file to be assigned to a task with my record');
+		insert cv;
+        
+        ContentVersion cv1 = [SELECT ContentDocumentId FROM ContentVersion WHERE Id =: cv.Id LIMIT 1];
+        Test.startTest();
+            
+        ContentDocumentLink cdl = new ContentDocumentLink();
+        cdl.LinkedEntityId = task.Id;
+        cdl.ContentDocumentId= cv1.ContentDocumentId;
+        cdl.ShareType = 'I';
+        insert cdl;
+		task.Attachment_s_Moved__c = True;
+    	try {
+    			update task;
+        }
+   		 catch(Exception e){
+         System.Assert(e.getMessage().contains('There was a problem with the Occurrence on this claim, development has been notified.'), e.getMessage());
+        }
+		}
+
+}

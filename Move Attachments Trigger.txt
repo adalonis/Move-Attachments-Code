@@ -1,0 +1,19 @@
+trigger moveAttachments on Task (after update) {
+    for (Task newT: Trigger.new){
+        Task oldT = Trigger.oldMap.get(newT.Id);
+        if(newT.Attachment_s_Moved__c == true && oldT.Attachment_s_Moved__c != newT.Attachment_s_Moved__c){
+            Task thisT = newT;
+            String parentID = thisT.WhatId;
+            List<ContentDocumentLink> link = [SELECT Id, LinkedEntityId, ContentDocumentID, ContentDocument.Title, ContentDocument.FileExtension, ContentDocument.FileType FROM ContentDocumentLink WHERE LinkedEntityId=:newT.Id];
+            List<ContentDocumentLink> newLink = new List<ContentDocumentLink>();
+            for(ContentDocumentLink lin : link){
+                ContentDocumentLink createLink = new ContentDocumentLink();
+                createLink.LinkedEntityId = parentID;
+                createLink.ShareType = 'V';
+                createLink.ContentDocumentId = lin.ContentDocumentId;
+                newLink.add(createLink);
+            }
+            insert newLink;
+        }
+    }
+}
