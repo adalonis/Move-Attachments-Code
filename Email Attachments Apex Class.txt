@@ -1,0 +1,580 @@
+public class EmailAttachments{
+	//Default for loading or saving records. Required on anything that will be doing an insert or update.
+    public boolean createLoan{get;set;}
+    public String targetEmail{get;set;}
+    public String targetSubject{get;set;}
+    public String targetBody{get;set;}
+    public Boolean disableButton {get;set;}
+    public Boolean disableSubject {get;set;}
+    public Boolean disableBody {get;set;}
+    public Boolean disableAttach {get;set;}
+    public Boolean sizeError {get;set;}
+    public Integer totalSize {get;set;}
+    public Integer totalSize2 {get;set;}
+    public String totalSizeType {get;set;}
+    public String totalAttachList {get;set;}
+    public Boolean selectAll {get;set;}
+    public Boolean showAttach {get;set;}
+    public String showAttachText {get;set;}
+    public Boolean renderAttachBox {get;set;}
+    public Boolean renderAttachText {get;set;}
+    public Boolean renderNextButton {get;set;}
+    public Boolean renderPreviousButton {get;set;}
+    public Boolean renderEmailButton {get;set;}
+    public Boolean renderEmailField {get;set;}
+    public Boolean renderEmailText {get;set;}
+    public Boolean renderSubjectField {get;set;}
+    public Boolean renderSubjectText {get;set;}
+    public Boolean renderBodyField {get;set;}
+    public Boolean renderBodyText {get;set;}
+    public Boolean renderAttachmentList {get;set;}
+    public Boolean renderAttachmentSelect {get;set;}
+    
+    //method for validating that a valid email address has been entered
+    public Boolean validateEmail(String email) {
+        Boolean res = true;
+        String emailRegex = '^[a-zA-Z0-9._|\\\\%#~`=?&/$^*!}{+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,4}$'; // source: <a href="http://www.regular-expressions.info/email.html" target="_blank" rel="nofollow">http://www.regular-expressions.info/email.html</a>
+        Pattern MyPattern = Pattern.compile(emailRegex);
+        Matcher MyMatcher = MyPattern.matcher(email);
+        if (!MyMatcher.matches())
+            res = false;
+        return res;
+    }
+    
+    //method for the next button to determine if the next section will be visible or not.
+    public void doNextAction(){
+        if(!disableSubject){
+            system.debug('Inside checkEmail');
+            if((targetEmail != null) && (targetEmail != '')){
+                disableSubject = true;
+                renderPreviousButton = true;
+                renderEmailField = false;
+                renderEmailText = true;
+                renderAttachBox = true;
+                renderAttachText = false;
+                renderSubjectField = true;
+                renderSubjectText = false;
+                renderBodyField = true;
+                renderBodyText = false;
+            }
+            else{
+                disableSubject = false;
+            }
+            //checkButton();
+        }
+        else if(!disableBody){
+            system.debug('Inside checkSubject');
+            if((targetSubject != null) && (targetSubject != '')){
+                renderPreviousButton = true;
+                renderSubjectField = false;
+                renderSubjectText = true;
+                renderBodyField = false;
+                renderBodyText = true;
+                renderAttachBox = false;
+                renderAttachText = true;
+                if(showAttach){
+                    showAttachText = 'Yes';
+                    renderAttachmentList = true;
+                    renderAttachmentSelect = false;
+                    disableBody = true;
+                }
+                else{
+                    showAttachText = 'No';
+                    renderAttachmentList = false;
+                	renderAttachmentSelect = false;
+                    disableBody = false;
+                    renderEmailButton = true;
+                	renderNextButton = false;
+                }
+            }
+            else{disableBody = false;}
+            //checkButton();
+        }
+        else if(!disableAttach){
+            system.debug('Inside checkAttach');
+            if((targetSubject != null) && (targetSubject != '') && (showAttach == true)){
+                disableAttach = true;
+                renderAttachmentList = false;
+                renderAttachmentSelect = true;
+                if(attachList2 != null){
+                    attachList2 = new List<aAttachment>();
+                }
+                for(aAttachment aAtt: getAttachments(claimID)){
+            		if(aAtt.selected == true){ attachList2.add(aAtt); //this would be addressed by setting an attachment to selected
+            		}
+        		}
+                renderEmailButton = true;
+                renderNextButton = false;
+            }
+            else{disableAttach = false;}
+        }
+        else{}
+    }
+    
+    public void doPreviousAction(){
+        if(disableAttach){
+            disableAttach = false;
+            renderAttachmentList = true;
+            renderAttachmentSelect = false;
+            renderEmailButton = false;
+            renderNextButton = true;
+        }
+        else if((disableBody) || (!disableBody && !showAttach)){
+            disableBody = false;
+            renderPreviousButton = true;
+            renderSubjectField = true;
+            renderSubjectText = false;
+            renderBodyField = true;
+            renderBodyText = false;
+            renderAttachmentList = false;
+            renderAttachmentSelect = true;
+            renderAttachBox = true;
+            renderAttachText = false;
+            if((!disableBody && !showAttach)){
+                renderNextButton = true;
+                renderEmailButton = false;
+            }
+        }
+        else if(disableSubject){
+            disableSubject = false;
+            renderPreviousButton = false;
+            renderEmailField = true;
+            renderEmailText = false;
+            renderSubjectField = false;
+            renderSubjectText = false;
+            renderBodyField = false;
+            renderBodyText = false;
+            renderAttachBox = false;
+            renderAttachText = false;
+        }
+    }
+
+    //method for determining if the button is active or not
+    public void checkButton(){
+        system.debug('Inside checkButton');
+        Integer counter = 0;
+        for(aAttachment a: attachList){
+            if(a.selected == true){  counter = counter+1; 
+            }
+        }
+        if((totalSize > 24000000)){
+            disableButton=true;
+            sizeError = true;
+        }
+        else if((counter < 1)){
+            disableButton=true;
+            sizeError = false;
+        }
+        else if(!disableBody || !disableSubject){ //set disableBody or disableSubject to true for this to be called, set at least 1 attachment to selected, set totalSize to be < 24000000 
+            disableButton=true;
+            sizeError = false;
+        }
+        else{ //set disableBody and disableSubject to true for this to be called, set at least 1 attachment to selected, set totalSize to be < 24000000 
+            disableButton = false;
+            sizeError = false;
+        }
+    }
+    
+    //method for checking email 
+    public void checkEmail(){
+        system.debug('Inside checkEmail');
+        if((targetEmail != null) && (targetEmail != '')){
+            disableSubject = true;
+        }
+        else{disableSubject = false;}
+        checkButton();
+    }
+    
+    //method for checking  subject line
+    public void checkSubject(){
+        system.debug('Inside checkSubject');
+        if((targetSubject != null) && (targetSubject != '')){
+            disableBody = true;
+        }
+        else{disableBody = false;}
+        checkButton();
+    }
+    
+    //method for updating the current size counter on the attachments.
+    public void checkSize(){
+        system.debug('Inside checkSize');
+        totalSize = 0;
+        totalSizeType = null;
+        for(aAttachment a: attachList){
+            if(a.selected == true){ //called when attachment is selected via checkbox
+                if(a.att.BodyLength != null){
+                    totalSize = totalSize + a.att.BodyLength;
+                }
+                else{totalSize = totalSize + 0;}
+                //attachList2.add(a);
+            }
+        }
+        if((totalSize < 1000) && (totalSize > 0)){ //selected attachment with byte size <1000 and >0, then controller.checkSize()
+            totalSizeType = 'Bytes';
+            totalSize2 = totalSize;
+        }
+        else if(totalSize < 1000000){
+            totalSizeType = 'KiloBytes';
+            totalSize2 = totalSize/1000;
+        }
+        else if(totalSize < 24000000){ //selected attachment with byte size <24000000 and >1000000, then controller.checkSize()
+            totalSizeType = 'MegaBytes';
+            totalSize2 = totalSize/1000000;
+        }
+        else if(totalSize > 24000000){ //selected attachment with byte size >24000000, then controller.checkSize()
+            totalSizeType = 'MegaBytes';
+            totalSize2 = totalSize/1000000;
+        }
+        else{totalSizeType = '';} //set total size to be a negative number, then controller.checkSize()
+        checkButton();
+    }
+    
+    //method for toggling select all
+    public void checkAll(){
+        if(selectAll == false){
+            selectAll = true;
+        }
+        else if(selectAll == true){
+            selectAll = false;
+        }
+        else{ //set selectAll to null
+            selectAll = false;
+        }
+        checkSize();
+    }
+    //This is the initial set of the claim records that will be used while compiling the attachments to email.
+    public String pageTitle;
+    private Claims__c claim;
+    private Claims__c claim2;
+    public String claimID;
+    String returnUrl = ApexPages.currentPage().getParameters().get('retURL');
+    
+    //Setting the list of related attachments for this incident.
+    public List<aAttachment> attachList {get; private set;}
+    public List<aAttachment> attachList2 {get; private set;}
+    
+    //Creating a list of fields that we want to load into the visual force page we are rendering
+    //All fields referenced in the visualforce page must be included here.
+    public List<String> editableFields{ //need to call this one. Returning a String List. List<String> example = controller.editableFields
+        get {
+            if (editableFields == null){
+                editableFields = new List<String>();
+                editableFields.add('id');
+                editableFields.add('Name');
+            }
+            return editableFields;
+        }
+        private set;
+    }
+    
+    //This is the wrapper/container class for selecting the attachments
+    public class aAttachment {
+        public Attachment att {get; set;}
+        public Boolean selected {get; set;}
+		
+        //Then we create a constructor method
+        //aAttachment thisAttach = new aAttachment(exampleAttachments);
+        public aAttachment(Attachment a){
+            att = a;
+            selected = false;
+        }
+        public void setAttTrue(){
+            selected = true;
+        }
+        public void setAttFalse(){
+            selected = false;
+        }
+    }
+    
+   /* public class aDocument{ //have a file created on the claim, linked via ContentDocumentLink
+        public ContentDocument doc {get; set;}
+        public Boolean selected {get; set;}
+        
+        //Then we create a constructor method
+        public aDocument(ContentDocument d){
+            doc = d;
+            selected = false;
+        }
+        
+        public void setDocTrue(){
+            selected = true;
+        }
+        public void setDocFalse(){
+            selected = false;
+        }
+	
+    }
+    */
+    
+    //this is the methoer for calling in the attachments from the wrapper
+    public List<aAttachment> getAttachments(String parentID) {
+        if(attachList == null){
+            attachList = new List<aAttachment>();
+            for(Attachment a: [Select Name, BodyLength, Description, ContentType, Body From Attachment WHERE ParentId=:parentID ORDER BY CreatedDate ASC]){
+                //Attachment aAtt = new Attachment();
+                //aAtt = a;
+                attachList.add(new aAttachment(a));
+            }
+            List<ContentDocumentLink> link = [SELECT Id, LinkedEntityId, ContentDocumentID, ContentDocument.Title, ContentDocument.FileExtension, ContentDocument.FileType FROM ContentDocumentLink WHERE LinkedEntityId=:parentID];
+            Set<Id> records = new Set<Id>();
+            for(ContentDocumentLink lin : link){ //will be called if there's a valid condtent document link.
+                records.add(lin.ContentDocumentId);
+            }
+            List<ContentDocument> docList = [SELECT Id, LatestPublishedVersionId, FileExtension, FileType, OwnerId, ParentId, Title FROM ContentDocument WHERE Id IN :records];
+            Set<Id> docRecords = new Set<Id>();
+            for(ContentDocument doc : docList){ //will be called if there's a valid condtent document link.
+                docRecords.add(doc.LatestPublishedVersionId);
+            }
+            List<ContentVersion> verList = [SELECT Id, VersionData, PathOnClient, FileType, Description FROM ContentVersion WHERE Id IN :docRecords];
+            for(ContentVersion ver : verList){ //will be called if there's a valid condtent document link.
+                Attachment anAttachment = new Attachment();
+                anAttachment.Body = ver.VersionData;
+                //anAttachment.ContentType = ver.FileType;
+                anAttachment.Name = ver.PathOnClient;
+                anAttachment.ParentId = parentID;
+                anAttachment.Description = ver.Description;
+                attachList.add(new aAttachment(anAttachment));
+            }
+        }
+        return attachList;
+    }
+    
+    //This is the method for processing and emailing the selected attachments.
+    public PageReference processSelected(){ //controller.processSelected()
+        List<Attachment> selectedAttach = new List<Attachment>();
+        for(aAttachment aAtt: getAttachments(claimID)){
+            if(aAtt.selected == true){ //called if attachment is selected
+                selectedAttach.add(aAtt.att);
+            }
+        }
+        
+        //here is where we query the market lists for distribution
+        Claims__c aClaim = [SELECT Name FROM Claims__c WHERE Id=:claimID];
+        
+        List<String> targetList = new List<String>();
+        if((targetEmail != null) && (targetEmail != '')){
+            if(targetEmail.contains(', ') || (targetEmail.contains(',')) || (targetEmail.contains(' '))){ //set target email to a single email, and processSelected, then set target email to "ajennings@clearrisk.com, success@clearrisk.com"
+                String firstManip = targetEmail.replace(', ', ',');
+                String secondManip = firstManip.replace(' ', ',');
+                targetList = secondManip.split(',');
+            }
+            else{
+                targetList.add(targetEmail);
+            }
+        }
+        List<String> emailList = new List<String>();
+        String noteBody = '';
+        String noteAttach = '<h1>Email Details</h1>';
+        String today = date.today().format();
+        noteBody = noteBody + 'Email sent: ' + today + '\n';
+        noteAttach = noteAttach + 'Email sent: ' + today + '<br />';
+        noteBody = noteBody + 'Email sent by: ' + UserInfo.getName() + '\n';
+        noteAttach = noteAttach + 'Email sent by: ' + UserInfo.getName() + '<br />';
+        noteBody = noteBody + 'Email sent to: ' + targetEmail + '\n';
+        noteAttach = noteAttach + 'Email sent to: ' + targetEmail + '<br />';
+        if(targetSubject != null){
+            noteBody = noteBody + 'Email Subject Line: ' + targetSubject + '\n';
+            noteAttach = noteAttach + 'Email Subject Line: ' + targetSubject + '<br />';
+        }
+        else{
+            noteBody = noteBody + 'Email Subject Line: No Subject Line was Provided \n';
+            noteAttach = noteAttach + 'Email Subject Line: No Subject Line was Provided <br />';
+        }
+        if(targetBody != null){ 
+            noteBody = noteBody + 'Email Body:\n' + targetBody + '\n';
+            noteAttach = noteAttach + 'Email Body:<br />' + targetBody + '<br />';
+        }
+        else{
+            noteBody = noteBody + 'Email Body:\n No Email Body was provided \n';
+            noteAttach = noteAttach + 'Email Body:<br /> No Email Body was provided <br />';
+        }
+        if(!(selectedAttach.isEmpty())){
+            noteBody = noteBody + 'The following attachments were also included with this email:\n';
+            noteAttach = noteAttach + 'The following attachments were also included with this email:<br />';
+        }
+        else{
+            noteBody = noteBody + 'No Attachments were included with this email.';
+            noteAttach = noteAttach + 'No Attachments were included with this email.';
+        }
+        
+        
+        //Now we want to begin building the email.
+        Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+        List<Messaging.Emailfileattachment> efaList = new List<Messaging.Emailfileattachment>();
+        for(Attachment a: selectedAttach){ //this is called if an attachment has the selected boolean set to true
+            Messaging.Emailfileattachment efa = new Messaging.Emailfileattachment();
+            efa.setFileName(a.Name);
+            efa.setBody(a.Body);
+            efa.setContentType(a.ContentType);
+			efaList.add(efa);
+            noteBody = noteBody + a.Name + '\n';
+            noteAttach = noteAttach + a.Name + '<br />';
+        }
+        String subjectLine = '';
+        if((targetSubject != null) && (targetSubject != '')){ //this is called as long as targetSubject is set to text 
+            subjectLine = targetSubject;
+        }
+        else{subjectLine = 'No valid subject line for this email has been provided.';}
+        
+        String[] toAddresses2 = new String[]{};
+        String[] invalidEmails = new String[]{};
+        if(targetEmail != null){ //targetEmail must be set, 
+            if(targetList != null){ //setting targetList (done if you have multiple emails)
+                for(String anE : targetList){ //for the for loop, may need to add another invalid email to the list, and also try with an entirely invalid list
+                    if(validateEmail(anE)){
+                        toAddresses2.add(anE);
+                    }
+                    else{
+                        invalidEmails.add(anE);
+                    }
+                }
+                if((toAddresses2 == null) || (toAddresses2.isEmpty())){
+                    toAddresses2.add('ajennings+invalidTargetList@clearrisk.com');
+                }
+            }
+        	else{toAddresses2.add('ajennings+invalidTargetList@clearrisk.com');}
+            
+        }
+        else{
+            toAddresses2.add('ajennings+invalidTargetEmail@clearrisk.com');
+        }
+        
+        mail.setToAddresses(toAddresses2);
+        //mail.setBccAddresses(bcc); //we can set bcc addresses if needed.
+        
+        mail.setSubject(subjectLine);
+        mail.setReplyTo('success@clearrisk.com'); //this needs to be updated with an overall email, or via if statement.
+        mail.setSenderDisplayName('ClearRisk Claims Management');
+        
+        String body = 'This is a notification that you have been sent the following attachments for Claim #' + claim.Name +'<br /><br />';
+        body = body + 'Regards,<br /><br />ClearRisk Team<br />ClearRisk<br />success@clearrisk.com<br />';
+        //body = body + '<img src="https://s3.amazonaws.com/clearrisk.emailimages/superiorEnglish150x50.jpg">';
+        
+        if(targetBody != null){ //want to set targetBody string
+            mail.setHtmlBody(targetBody);
+        }
+        else{
+            mail.setHtmlBody(body);
+        }
+        
+        mail.setFileAttachments(efaList);
+        Messaging.sendEmail(new Messaging.SingleEmailMessage[]{mail});
+        
+        Task t = new Task();
+        t.Subject = 'Email Sent by ' + UserInfo.getName() + ' - Subject: ' + targetSubject;
+        t.TaskSubtype = 'Email';
+        t.Status = 'Completed';
+        t.WhatId = claimID;
+		t.OwnerId = UserInfo.getUserId();
+        t.Description = noteBody;
+        insert t;
+        
+		ContentVersion cv = new ContentVersion();
+        cv.ContentLocation = 'S';
+        cv.VersionData = Blob.toPdf(noteAttach);
+        cv.Title = 'Email Sent by ' + UserInfo.getName() + ' - Subject: ' + targetSubject + '.pdf';
+        cv.PathOnClient = 'Email Sent by ' + UserInfo.getName() + ' - Subject: ' + targetSubject + '.pdf';
+        insert cv;
+        
+        ContentDocumentLink cdl = new ContentDocumentLink();
+        cdl.ContentDocumentId = [SELECT Id, ContentDocumentId FROM ContentVersion WHERE Id =: cv.Id].ContentDocumentId;
+        cdl.LinkedEntityId = claimID;
+        cdl.ShareType = 'V';
+        insert cdl;
+        
+        //This is a separate email that gets sent showing invalid emails that were entered.
+        if((invalidEmails != null) && (!invalidEmails.isEmpty())){ //this is handled is invalid emails are set
+            String[] errorEmail = new String[]{};
+            errorEmail.add('ajennings@clearrisk.com');
+            
+            Messaging.SingleEmailMessage mail2 = new Messaging.SingleEmailMessage();
+            mail2.setToAddresses(errorEmail);
+            mail2.setSubject('Invalid Emails included on attachment email');
+            mail2.setReplyTo('success@clearrisk.com'); //this needs to be updated with an overall email, or via if statement.
+            mail2.setSenderDisplayName('ClearRisk Claims Management');
+            String otherBody = 'The following invalid email addresses were entered in your recent attempt to send attachments for Claim ' + claim.Name + '.';
+            otherBody = otherBody + '<ul>';
+            for(String aI : invalidEmails){
+                otherBody = otherBody + '<li>' + aI + '</li>';
+            }
+            otherBody = otherBody + '</ul>';
+            mail2.setHtmlBody(otherBody);
+            Messaging.sendEmail(new Messaging.Singleemailmessage[]{mail2});
+        }
+        
+        //now we have out list of selected attachments and can perform any type of logic we want
+        System.debug('These are the selected attachments...');
+        for(Attachment att: selectedAttach){
+            system.debug(att);
+        }
+        attachList=null; //we need this line we performed a write operation because getAttachments gets a fresh list now
+        PageReference pr = new PageReference('/' + claim.Id);
+        pr.setRedirect(true);
+        return pr;
+        
+        //return null;
+    }
+    
+   
+    
+    //Our controller will be the final call and will be used during the testing method. This is where we are going to call in the initial attachments data.
+    public EmailAttachments(ApexPages.StandardController stdController){
+        claim2 = (Claims__c) stdController.getRecord();
+        claim = [Select Id, Name From Claims__c Where Id=:claim2.Id Limit 1];
+        claimID = claim2.Id;
+        
+        //Here we are querying all of the related attachments to the incident record, and all relevant fields we need.
+        //attachList = [Select Name, BodyLength, Description, ContentType, Body From Attachment WHERE ParentId=:claimID ORDER BY CreatedDate ASC];
+        getAttachments(claimID);
+        attachList2 = new List<aAttachment>();
+        disableBody = false;
+        disableSubject = false;
+        disableAttach = false;
+        disableButton = true;
+        renderEmailButton = false;
+        renderPreviousButton = false;
+        renderNextButton = true;
+        renderEmailField = true;
+        renderEmailText = false;
+        renderSubjectField = false;
+        renderSubjectText = false;
+        renderBodyField = false;
+        renderBodyText = false;
+        showAttach = false;
+        showAttachText = 'No';
+        renderAttachText = false;
+        renderAttachBox = false;
+        renderAttachmentList = false;
+        renderAttachmentSelect = false;
+        sizeError = false;
+        totalAttachList = '';
+        selectAll = false;
+        
+        //confirmation message for screen, entirely optional.
+        ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.WARNING,'Are you sure you want to email attachments?'));
+
+    }
+     
+    public PageReference doEmail(){
+        
+        List<Attachment> aList = new List<Attachment>();
+        
+        for(Attachment att : aList){
+            //do a thing
+        }
+        
+        PageReference pr = new PageReference('/' + claim.Id);
+        pr.setRedirect(true);
+        return pr;
+    }
+    
+    public PageReference asynchInit(){
+        return null;
+    }
+    
+    public PageReference doCancelAction(){
+        PageReference pr = new PageReference('/' + claim.Id);
+        pr.setRedirect(true);
+        return pr;
+    }
+}

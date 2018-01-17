@@ -1,0 +1,92 @@
+<apex:page standardController="Claims__c" extensions="EmailAttachments">
+<head>    
+     <style >
+        .italicText
+        {
+            font-weight: bold
+            font-size: 14px;
+            text-align:center;
+            width :100%;
+        }     
+     </style>
+    </head>
+    <script>
+        function toggleCheckAll(id) {
+            var inputList = document.getElementsByClassName('selectInput');
+            for(var i=0;i<inputList.length;i++){
+                document.getElementsByClassName('selectInput')[i].checked = id.checked;
+            }
+            checkAll();
+        } 
+    </script>
+
+    
+   <apex:form >
+    <apex:pageblock >
+        <apex:pageBlockSection title="Please enter the email(s) you would like to send the selected attachments to." collapsible="false">
+            <apex:inputText value="{!targetEmail}" id="email" label="Email Address(es)" size="75" rendered="{!renderEmailField}" />
+            <apex:outputLabel rendered="{!renderEmailField}"><b>For multiple emails, please seperate each email by a comma, followed by a space (', ').</b></apex:outputLabel>
+            <apex:outputLabel rendered="{!renderEmailText}"><b>Email(s) Entered: {!targetEmail}</b></apex:outputLabel>
+        </apex:pageBlockSection>
+        
+        <apex:pageBlockSection title="Please enter the subject line and body for your email." collapsible="false" rendered="{!disableSubject}" columns="1">
+            <apex:inputText value="{!targetSubject}" id="subject" label="Subject Line"  size="90" rendered="{!renderSubjectField}"/>
+            <apex:outputLabel rendered="{!renderSubjectText}"><b>Subject Line: {!targetSubject}</b></apex:outputLabel>
+            <apex:inputTextarea value="{!targetBody}" id="body" label="Email Message" richText="true" cols="107" rows="5" rendered="{!renderBodyField}"/>
+            <apex:outputLabel rendered="{!renderBodyText}"><b>Email Message: {!targetBody}</b></apex:outputLabel>
+            <apex:outputLabel rendered="{!renderSubjectField}"><b>Please note that formatting and line breaks are not available in the email message.</b></apex:outputLabel>
+            <apex:inputCheckbox id="showAttach" value="{!showAttach}" rendered="{!renderAttachBox}">Would you like to add attachments to this email?</apex:inputCheckbox>
+            <apex:outputLabel rendered="{!renderAttachText}"><b>Would you like to add attachments to this email? {!showAttachText}</b></apex:outputLabel>
+        </apex:pageBlockSection>
+        
+        <apex:pageBlockSection title="Please select the attachments you would like to send." collapsible="false" rendered="{!disableBody}" columns="1">
+            <p style="text-align:center; width : 100%;font-size: 16px; font-weight: bold ;">
+            Please note that if the an attachment is more than 4 Megabytes (MB) a link to download the attachment will be included instead.
+            </p>
+            <!-- <p style="text-align:center; width : 100%;font-size: 16px; font-weight: bold ;"> -->
+            <apex:outputText id="sizer" value="The total attachment size for this email is: {!totalSize2} {!totalSizeType}" style="text-align:center; width : 100%;font-size: 16px; font-weight: bold ;"></apex:outputText>
+            <!-- <apex:outputText id="sizer2" rendered="{!sizeError}" value="The total allowable attachment size for this email has been exceeded" style="text-align:center; width : 100%;font-size: 16px; font-weight: bold ; color:red;"></apex:outputText> -->
+            <!-- </p> -->
+        
+        
+            <!-- In our table we are displaying the aAttachment records -->
+            <apex:actionFunction action="{!checkAll}" name="checkAll"/> <!-- This is for calling the javascript check all function.  -->
+            <apex:pageBlockTable rendered="{!renderAttachmentList}" value="{!attachList}" var="attach" cellpadding="5px" border="1" id="table">
+                <apex:column >
+                    <apex:facet name="header">
+                        <apex:inputCheckbox id="checkAllBox" value="{!selectAll}"> Select All
+                        <apex:actionSupport event="onchange" action="{!checkSize}" onsubmit="toggleCheckAll(this)"/>
+                        </apex:inputCheckbox>
+                    </apex:facet>
+                    <!-- This is our selected Boolean property in our wrapper class -->
+                    <apex:inputCheckbox value="{!attach.selected}" styleClass="selectInput">
+                    <apex:actionSupport event="onchange" action="{!checkSize}"/>
+                    </apex:inputCheckbox>
+                </apex:column>
+                <!-- This is how we access the ttachment values within out aAttachment container/wrapper -->
+                <apex:column value="{!attach.att.Name}" />
+                <apex:column value="{!attach.att.Description}" />
+                <apex:column value="{!attach.att.ContentType}" />
+                <apex:column value="{!attach.att.BodyLength}" />
+            </apex:pageBlockTable>
+            <apex:outputLabel rendered="{!renderAttachmentSelect}"><b>Attachments Selected: <br /></b></apex:outputLabel>
+            <apex:pageBlockTable rendered="{!renderAttachmentSelect}" value="{!attachList2}" var="attach" cellpadding="5px" border="1" id="table2">
+                <!-- This is how we access the ttachment values within out aAttachment container/wrapper -->
+                <apex:column value="{!attach.att.Name}" />
+                <apex:column value="{!attach.att.Description}" />
+                <apex:column value="{!attach.att.ContentType}" />
+                <apex:column value="{!attach.att.BodyLength}" />
+            </apex:pageBlockTable>
+        </apex:pageBlockSection>
+        
+        <apex:pageBlockButtons location="bottom" id="command_buttons">
+            <apex:commandButton id="next_button" value="Next" action="{!doNextAction}" rendered="{!renderNextButton}" />
+            <apex:commandButton id="previous_button" value="Previous" action="{!doPreviousAction}" rendered="{!renderPreviousButton}" />
+            <apex:commandButton id="email_button" value="Send Email" action="{!processSelected}" rendered="{!renderEmailButton}"/>
+            <apex:commandButton id="cancel_button" value="Cancel" action="{!doCancelAction}" immediate="true" styleClass="btn" />
+        </apex:pageBlockButtons>
+       </apex:pageblock>
+    
+    
+    </apex:form> 
+</apex:page>

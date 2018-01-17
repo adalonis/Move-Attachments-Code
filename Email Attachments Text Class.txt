@@ -1,0 +1,268 @@
+@isTest
+public class EmailAttachmentsTest{
+    public static testMethod void TestEmailAttachments(){
+        // TO DO: implement unit test
+        	//for the attachments, we need to set the Body for each one being inserted, as well as the path/FileType, can likely just use .txt
+        test.startTest();
+        
+        //instance of an occurrence
+        Occurrence__c masterOcc = new Occurrence__c( Occurrence_Number__c='CR357464',Occurrence_Date__c= date.newInstance(2012, 02, 25)); 
+        insert masterOcc;
+        
+         // creating a claim record
+        Claims__c cc = new Claims__c(Claim_Titile__c ='20120927-0017-4', Claim_Number__c='TGG648737', Occurrence_Num__c= masterOcc.Id);
+        insert cc;
+        
+        // creating ContentVersion record
+        ContentVersion cv = new ContentVersion();
+        cv.Title = 'Budget';
+        cv.PathOnClient ='Budget.txt';
+        cv.VersionData=Blob.valueOf('I am a file to be assigned to a task with my record');
+        cv.IsMajorVersion = true;
+		insert cv;
+        
+       ContentDocument aDocument = [SELECT Id, Title, LatestPublishedVersionId FROM ContentDocument ];
+       ContentDocument doc = [SELECT Id, Title, LatestPublishedVersionId FROM ContentDocument ];
+        
+        // creating ContentDocumentLink record
+        ContentDocumentLink cdl = new ContentDocumentLink();
+        cdl.LinkedEntityId = cc.Id;
+        cdl.ContentDocumentId = aDocument.Id;
+        cdl.ShareType='V';
+       	insert cdl;
+
+		// creating the instance of an attachment
+        Attachment attach = new Attachment();
+        attach.name = 'Unit Test Attachment.txt';
+        Blob bodyBlob = Blob.valueOf('Unit Test Attachment body');
+        attach.Body= bodyBlob;
+        attach.ParentId= cc.Id;
+        attach.ContentType='application/rtf';
+        insert attach;
+        
+        // creating the instance of an attachment record
+       Attachment anAttachment = new Attachment();
+       anAttachment.Body = bodyBlob;
+       anAttachment.ContentType = 'budget.pdf';
+       anAttachment.Name = 'TEst';
+       anAttachment.ParentId = cc.Id;
+       anAttachment.Description = 'Description';
+       insert anAttachment;
+        
+		// creating the instance of an attachment record
+        Attachment aAttachment = new Attachment();
+        aAttachment.Name= 'Test';
+        aAttachment.ParentId= cc.Id;
+        aAttachment.Description = 'Tjhjdkehk dhsjdh';
+        aAttachment.Body= blob.valueOf('gsgwdgjshghdgdfdh');
+        aAttachment.ContentType= 'Budget/pdf';
+       	insert aAttachment;
+        
+        // creating a list of Attachments       
+        List<Attachment> attachList2=[select id, name from Attachment WHERE ParentId =:cc.Id LIMIT 4];
+        attachList2.add(anAttachment);
+        System.assertEquals( 4, attachList2.size()); 
+      
+        PageReference pr = Page.EmailAttachments;
+        Test.setCurrentPageReference(pr);
+       	ApexPages.StandardController sc = new ApexPages.StandardController(cc);
+        
+        EmailAttachments eas = new EmailAttachments(sc);
+        eas.attachList[0].setAttTrue();
+        PageReference selected = eas.processSelected();
+        System.assertNotEquals(null, selected);
+
+        EmailAttachments controller = new EmailAttachments(sc);
+        controller.createLoan=true;
+        controller.asynchInit();
+       	controller.targetEmail='aadeoya@clearrisk.com';
+      	controller.targetBody='the content is available';
+        controller.targetSubject='Valid email Attachment';
+       	controller.pageTitle='Budget 2012';
+        controller.claimID=cc.id;
+       	
+        EmailAttachments esNew = new EmailAttachments(sc);// creating a new instance of a controller
+        esNew.attachList[0].setAttFalse();
+        PageReference selects = esNew.processSelected();
+        System.assertNotEquals(null,selects);
+        esNew.doNextAction();
+        
+        esNew.disableSubject = false;
+        esNew.targetEmail='';
+        esNew.doNextAction();
+        esNew.targetEmail='aadeoya@clearrisk.com';
+        esNew.disableSubject = false;
+        esNew.doNextAction();
+        esNew.disableBody = false;
+        esNew.targetSubject='';
+        esNew.doNextAction();
+        esNew.disableBody = false;
+        esNew.targetSubject='Valid email Attachment';
+        esNew.doNextAction();
+        esNew.disableAttach = false;
+        esNew.targetSubject='';
+        esNew.doNextAction();
+        esNew.targetSubject='Valid email Attachment';
+        esNew.claimID = cc.Id;
+        esNew.doNextAction();
+        
+        controller.disableAttach = false;
+        controller.disableBody= false;
+        controller.doPreviousAction();
+        controller.disableAttach = true;
+        controller.disableBody= true;
+        controller.doPreviousAction();
+        controller.disableAttach = false;
+        controller.disableBody= true;
+        controller.doPreviousAction();
+		controller.disableSubject=true;
+		controller.disableAttach= false;
+        controller.disableBody=false;
+        controller.doPreviousAction();
+        
+        //the following checks will need us to set a attachment or document to selected first.
+        controller.totalSize= 25000000;
+        controller.totalSizeType='MegaBytes';
+        controller.totalSize2= 25000000/1000000;
+        controller.disableButton= false;
+        controller.sizeError= false;
+        controller.checkButton();
+        
+        Attachment a = new Attachment();
+        a.ParentId= cc.Id;
+        a.Name='Tester';
+        a.ContentType='abudget/pdf';
+        a.Body=blob.valueOf('gsgwdgjshghdgdfdh');
+        insert a;
+        controller.totalSize= 22000000;
+        controller.totalSizeType='MegaBytes';
+        controller.totalSize2= 22000000/1000000;
+        controller.disableBody= true;
+        controller.disableSubject= true;
+        controller.disableBody=false;
+        controller.sizeError=true;
+        controller.checkButton();
+        controller.checkSize();
+
+        controller.totalSize= 999;
+        controller.totalSize=1;
+        controller.totalSizeType='Bytes';
+        controller.totalSize2=999;
+        controller.checkSize();
+		
+
+        controller.totalSize=15000000;
+        controller.totalSizeType='MegaBytes';
+        controller.totalSize2= 15000000/1000000;
+        controller.checkSize();
+        
+        controller.totalSize=300000000;
+        controller.totalSizeType='MegaBytes';
+        controller.totalSize2= 300000000/1000000;
+        controller.checkSize();
+        
+        controller.totalSize= 25000000;
+        controller.checkSize();
+
+        controller.totalSize=-200000000;
+        controller.totalSize2= -200000000/1000000;
+        controller.totalSizeType='';
+        controller.checkSize();
+
+
+        controller.disableSubject = true;
+        controller.targetEmail = '';
+        controller.checkEmail();
+        controller.disableSubject = false;
+        controller.targetEmail = 'success@clearrirsk.com';
+        controller.checkEmail();
+     
+        controller.disableBody = true;
+        controller.targetSubject='';
+        controller.checkSubject();
+        controller.disableBody = false;
+        controller.targetSubject='Valid email Attachment';
+        controller.checkSubject();
+        
+        controller.selectAll= True;
+        controller.checkAll();
+        controller.selectAll= False;
+        controller.checkAll();
+        controller.selectAll= null;
+        controller.checkAll();
+        
+        //controller.doEmail('success@clearrisk.com');
+        controller.doEmail();
+        controller.doEmail();
+ 
+
+        String exampleEmail = 'success@clearrirsk.com';
+        controller.validateEmail(exampleEmail);
+        exampleEmail = 'agsrqwheqer3g34';
+        controller.validateEmail(exampleEmail);
+
+        // setting invalid email 
+        List<String> invalidEmails = new List<String>{'ajennings+invalidTargetList@clearrisk.com,sgwhgdsahg@.com,fdge@123.com'};    
+        invalidEmails.add('&#^$nings+invalidTargetList@clearrisk.com,kleb@56.com,uti73&@_om');
+        
+        // setting targetList 
+        List<String> targetList = new List<String>{'success@clearrisk.com','aadeoya@clearrisk.com','ajennings@clearrisk.com'};
+        targetList.add('ajennincom2,succesx@_clearrisk.com3,a@x_djd.comw');
+        
+		String anE = '2success@&clearrisk.com';
+        invalidEmails.add(anE);
+        
+        // setting toAddresses2
+         List<String> toAddresses2 = new List<String>{};
+		toAddresses2.add('ajennings+invalidTargetList@clearrisk.com');
+        
+        List<Attachment> attachList=[select id, name from Attachment WHERE ParentId =:cc.Id LIMIT 4];
+        attachList.add(aAttachment);
+        
+       	Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+        mail.setSubject('subjectLine');
+        mail.setReplyTo('success@clearrisk.com');
+        mail.setSenderDisplayName('ClearRisk Claims Management');
+        controller.targetEmail = 'yewdgfy fg36t6trf';
+        controller.targetEmail =  'adaaad, ajennings@clearrisk.com';
+        controller.targetEmail = 'ujjdgyfewtf6r3t73hd,adaaad, ajennings@clearrisk.com';
+        controller.processSelected();
+        
+        controller.targetEmail='ajennings@clearrisk.com, success@clearrisk.com';
+       	String targetBody = 'this is the body';
+        targetList.add('ajennings@clearrisk.com,success@clearrisk.com');
+        String body = 'This is a notification that you have been sent the following attachments for Claim #';
+        mail.setHtmlBody('<b>this is the body'); 
+        
+        String[] errorEmail = new String[]{};
+        errorEmail.add('ajennincom2,succesx@_clearrisk.com3,a@x_djd.comw');
+        errorEmail.add('ajennin@comw,succesxclearrisk_.comd,a@xdjd.com1');
+        errorEmail.add('ajennin@com2,succesx@_c1learrisk.cocm,axdjd.com_');
+        
+        Messaging.SingleEmailMessage mail2 = new Messaging.SingleEmailMessage();
+        mail2.setSenderDisplayName('Agent of Change');
+        mail2.setToAddresses(errorEmail);
+        mail2.setSubject('fill in the gap');
+        mail2.setReplyTo ('success@clearrisk.com');
+        mail2.setHtmlBody('the description ');
+     
+        List<Messaging.Emailfileattachment> efaList = new List<Messaging.Emailfileattachment>();
+        Messaging.Emailfileattachment efa= new Messaging.Emailfileattachment();
+        efa.setFileName('attachList.id');
+        efa.setBody(bodyBlob) ;
+        efa.setContentType('Budget/pdf') ;
+        controller.targetEmail= 'ajennings@clearrisk.com, mbowman@clearrisk.com' ;    
+        controller.targetSubject='the budget';
+        String SubjectLine = controller.targetSubject;
+        controller.targetBody='thebu jbrehjr';
+		efaList.add(efa);
+        controller.doCancelAction();
+ 
+        List<String> edf = controller.editableFields;
+        edf.add('name');
+        
+       	test.stopTest(); 
+		
+    	}
+	
+}
