@@ -240,7 +240,7 @@ public class EmailAttachments{
         else{ //set selectAll to null
             selectAll = false;
         }
-        checkSize();
+        //checkSize();
     }
     //This is the initial set of the claim records that will be used while compiling the attachments to email.
     public String pageTitle;
@@ -270,13 +270,30 @@ public class EmailAttachments{
     //This is the wrapper/container class for selecting the attachments
     public class aAttachment {
         public Attachment att {get; set;}
+        public ContentVersion cv {get; set;}
         public Boolean selected {get; set;}
+        public String FileName {get;set;}
+        public String FileDescription {get;set;}
+        public String FileType {get;set;}
 		
         //Then we create a constructor method
         //aAttachment thisAttach = new aAttachment(exampleAttachments);
         public aAttachment(Attachment a){
             att = a;
             selected = false;
+            FileName = a.Name;
+            FileDescription = a.Description;
+            FileType = a.ContentType;
+        }
+        public aAttachment(ContentVersion c){
+            cv = c;
+            selected = false;
+            FileName = c.Title;
+            if(FileName.contains('/')){
+                FileName = FileName.mid(1, 1000);
+            }
+            FileDescription = c.Description;
+            FileType = c.FileType;
         }
         public void setAttTrue(){
             selected = true;
@@ -310,7 +327,7 @@ public class EmailAttachments{
     public List<aAttachment> getAttachments(String parentID) {
         if(attachList == null){
             attachList = new List<aAttachment>();
-            for(Attachment a: [Select Name, BodyLength, Description, ContentType, Body From Attachment WHERE ParentId=:parentID ORDER BY CreatedDate ASC]){
+            for(Attachment a: [Select Id, Name, BodyLength, Description, ContentType From Attachment WHERE ParentId=:parentID ORDER BY CreatedDate ASC]){
                 //Attachment aAtt = new Attachment();
                 //aAtt = a;
                 attachList.add(new aAttachment(a));
@@ -325,15 +342,16 @@ public class EmailAttachments{
             for(ContentDocument doc : docList){ //will be called if there's a valid condtent document link.
                 docRecords.add(doc.LatestPublishedVersionId);
             }
-            List<ContentVersion> verList = [SELECT Id, VersionData, PathOnClient, FileType, Description FROM ContentVersion WHERE Id IN :docRecords];
+            List<ContentVersion> verList = [SELECT Id, Title, PathOnClient, FileType, Description FROM ContentVersion WHERE Id IN :docRecords];
             for(ContentVersion ver : verList){ //will be called if there's a valid condtent document link.
-                Attachment anAttachment = new Attachment();
-                anAttachment.Body = ver.VersionData;
+                attachList.add(new aAttachment(ver));
+                //Attachment anAttachment = new Attachment();
+                //anAttachment.Body = ver.VersionData;
                 //anAttachment.ContentType = ver.FileType;
-                anAttachment.Name = ver.PathOnClient;
-                anAttachment.ParentId = parentID;
-                anAttachment.Description = ver.Description;
-                attachList.add(new aAttachment(anAttachment));
+                //anAttachment.Name = ver.PathOnClient;
+                //anAttachment.ParentId = parentID;
+                //anAttachment.Description = ver.Description;
+                //attachList.add(new aAttachment(anAttachment));
             }
         }
         return attachList;
@@ -342,9 +360,33 @@ public class EmailAttachments{
     //This is the method for processing and emailing the selected attachments.
     public PageReference processSelected(){ //controller.processSelected()
         List<Attachment> selectedAttach = new List<Attachment>();
+        List<ContentVersion> selectedContent = new List<ContentVersion>();
+        List<Id> selectedAttachID = new List<Id>();
+        List<Id> selectedContentID = new List<Id>();
         for(aAttachment aAtt: getAttachments(claimID)){
             if(aAtt.selected == true){ //called if attachment is selected
-                selectedAttach.add(aAtt.att);
+                //Attachment a = [Select Id, Name, BodyLength, Body, Description, ContentType From Attachment WHERE Id=:aAtt.att.Id];
+                if(aAtt.att != null){
+                    Id a = aAtt.att.Id;
+                    selectedAttachID.add(a);
+                }
+                if(aAtt.cv != null){
+                    Id c = aAtt.cv.Id;
+                    selectedContentID.add(c);
+                }
+            }
+        }
+        if(selectedAttachID != null){
+			selectedAttach = [Select Id, Name, BodyLength, Body, Description, ContentType From Attachment WHERE Id IN :selectedAttachID];
+        }
+        if(selectedContentID != null){
+            selectedContent = [SELECT Id, Title, VersionData, PathOnClient, FileType, Description FROM ContentVersion WHERE Id IN :selectedContentID];
+            for (ContentVersion c : selectedContent){
+                if(c.FileType == 'SNOTE' ){
+                    Blob cData = c.VersionData;
+                    String noteString = cData.toString();
+                    c.VersionData = Blob.toPdf(noteString);
+                }
             }
         }
         
@@ -409,6 +451,30 @@ public class EmailAttachments{
 			efaList.add(efa);
             noteBody = noteBody + a.Name + '\n';
             noteAttach = noteAttach + a.Name + '<br />';
+        }
+        for(ContentVersion c: selectedContent){ //this is called if an attachment has the selected boolean set to true
+            Messaging.Emailfileattachment efa = new Messaging.Emailfileattachment();
+            String fName = '';
+            if(c.PathOnClient.contains('.snote')){
+                String oName = c.Title;
+                if(oName.contains('.snote')){
+                    oName = oName.replace('.snote', '.pdf');
+                }
+                else{
+                    oName = oName + '.pdf';
+                }
+                
+                fName = oName;
+            }
+            else{
+                fName = c.PathOnClient;
+            }
+            efa.setFileName(fName);
+            efa.setBody(c.VersionData);
+            //efa.setContentType(c.ContentType);
+			efaList.add(efa);
+            noteBody = noteBody + fName + '\n';
+            noteAttach = noteAttach + fName + '<br />';
         }
         String subjectLine = '';
         if((targetSubject != null) && (targetSubject != '')){ //this is called as long as targetSubject is set to text 
