@@ -1,0 +1,22 @@
+trigger AttachToFile on Attachment (after insert) {
+    for(Attachment aAtt : Trigger.new){
+        
+        Attachment theAtt = [Select Id, Name, Body, ContentType, ParentId, Description, OwnerId FROM Attachment WHERE Id=:aAtt.Id];
+        
+        ContentVersion cv = new ContentVersion();
+        cv.ContentLocation = 'S';
+        cv.VersionData = theAtt.Body;
+        cv.Title = theAtt.Name;
+        cv.PathOnClient = theAtt.Name;
+        insert cv;
+        
+        ContentDocumentLink cdl = new ContentDocumentLink();
+        cdl.ContentDocumentId = [SELECT Id, ContentDocumentId FROM ContentVersion WHERE Id =: cv.Id].ContentDocumentId;
+        cdl.LinkedEntityId = theAtt.ParentId;
+        cdl.ShareType = 'V';
+        insert cdl;
+        
+        delete theAtt;
+        
+    }
+}
