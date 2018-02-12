@@ -99,7 +99,7 @@ public class EmailAttachments{
                 if(attachList2 != null){
                     attachList2 = new List<aAttachment>();
                 }
-                for(aAttachment aAtt: getAttachments(claimID)){
+                for(aAttachment aAtt: attachList){
             		if(aAtt.selected == true){ attachList2.add(aAtt); //this would be addressed by setting an attachment to selected
             		}
         		}
@@ -157,11 +157,11 @@ public class EmailAttachments{
             if(a.selected == true){  counter = counter+1; 
             }
         }
-        if((totalSize > 24000000)){
+        if((totalSize > 52428800)){
             disableButton=true;
             sizeError = true;
         }
-        else if((counter < 1)){
+        else if((counter < 1) && (showAttach)){
             disableButton=true;
             sizeError = false;
         }
@@ -202,28 +202,33 @@ public class EmailAttachments{
         totalSizeType = null;
         for(aAttachment a: attachList){
             if(a.selected == true){ //called when attachment is selected via checkbox
-                if(a.att.BodyLength != null){
-                    totalSize = totalSize + a.att.BodyLength;
+                if(a.ContentSize != null){
+                    if(a.ContentSize > 3145728){
+                        totalSize = totalSize + 0;
+                    }
+                    else{
+                        totalSize = totalSize + a.ContentSize;
+                    }
                 }
                 else{totalSize = totalSize + 0;}
                 //attachList2.add(a);
             }
         }
-        if((totalSize < 1000) && (totalSize > 0)){ //selected attachment with byte size <1000 and >0, then controller.checkSize()
+        if((totalSize < 1024) && (totalSize > 0)){ //selected attachment with byte size <1000 and >0, then controller.checkSize()
             totalSizeType = 'Bytes';
             totalSize2 = totalSize;
         }
-        else if(totalSize < 1000000){
+        else if(totalSize < 1048576){
             totalSizeType = 'KiloBytes';
             totalSize2 = totalSize/1000;
         }
-        else if(totalSize < 24000000){ //selected attachment with byte size <24000000 and >1000000, then controller.checkSize()
+        else if(totalSize < 1073741824){ //selected attachment with byte size <24000000 and >1000000, then controller.checkSize()
             totalSizeType = 'MegaBytes';
             totalSize2 = totalSize/1000000;
         }
-        else if(totalSize > 24000000){ //selected attachment with byte size >24000000, then controller.checkSize()
-            totalSizeType = 'MegaBytes';
-            totalSize2 = totalSize/1000000;
+        else if(totalSize > 1073741824){ //selected attachment with byte size >24000000, then controller.checkSize()
+            totalSizeType = 'GigaBytes';
+            totalSize2 = totalSize/1073741824;
         }
         else{totalSizeType = '';} //set total size to be a negative number, then controller.checkSize()
         checkButton();
@@ -267,6 +272,21 @@ public class EmailAttachments{
         private set;
     }
     
+    public class aDist {
+        public ContentDistribution cd {get;set;}
+        public String cdURL {get;set;}
+        public String fName {get;set;}
+        public String fSize {get;set;}
+        
+        public aDist(ContentDistribution c, String f, String u, String s){
+            cd = c;
+            fName = f;
+            cdURL = u;
+            fSize = s;
+        }
+    }
+    
+    
     //This is the wrapper/container class for selecting the attachments
     public class aAttachment {
         public Attachment att {get; set;}
@@ -275,6 +295,8 @@ public class EmailAttachments{
         public String FileName {get;set;}
         public String FileDescription {get;set;}
         public String FileType {get;set;}
+        public Integer ContentSize {get;set;}
+        public String ContentSizeFormatted {get;set;}
 		
         //Then we create a constructor method
         //aAttachment thisAttach = new aAttachment(exampleAttachments);
@@ -294,6 +316,18 @@ public class EmailAttachments{
             }
             FileDescription = c.Description;
             FileType = c.FileType;
+            ContentSize = c.ContentSize;
+            if((ContentSize < 1024) && (ContentSize > 0)){ //selected attachment with byte size <1000 and >0, then controller.checkSize()
+                ContentSizeFormatted = ContentSize + ' B';
+            }
+            else if(ContentSize < 1048576){
+                Decimal CS = ContentSize / 1024;
+                ContentSizeFormatted = CS + ' KB';
+            }
+            else if(ContentSize < 1073741824){ //selected attachment with byte size <24000000 and >1000000, then controller.checkSize()
+                Decimal CS = ContentSize / 1048576;
+                ContentSizeFormatted = CS + ' MB';
+            }
         }
         public void setAttTrue(){
             selected = true;
@@ -342,7 +376,7 @@ public class EmailAttachments{
             for(ContentDocument doc : docList){ //will be called if there's a valid condtent document link.
                 docRecords.add(doc.LatestPublishedVersionId);
             }
-            List<ContentVersion> verList = [SELECT Id, Title, PathOnClient, FileType, Description FROM ContentVersion WHERE Id IN :docRecords];
+            List<ContentVersion> verList = [SELECT Id, ContentSize, Title, PathOnClient, FileType, Description FROM ContentVersion WHERE Id IN :docRecords];
             for(ContentVersion ver : verList){ //will be called if there's a valid condtent document link.
                 attachList.add(new aAttachment(ver));
                 //Attachment anAttachment = new Attachment();
@@ -361,9 +395,11 @@ public class EmailAttachments{
     public PageReference processSelected(){ //controller.processSelected()
         List<Attachment> selectedAttach = new List<Attachment>();
         List<ContentVersion> selectedContent = new List<ContentVersion>();
+        List<aDist> linkList = new List<aDist>();
         List<Id> selectedAttachID = new List<Id>();
         List<Id> selectedContentID = new List<Id>();
-        for(aAttachment aAtt: getAttachments(claimID)){
+        //for(aAttachment aAtt: getAttachments(claimID)){
+        for(aAttachment aAtt: attachList){
             if(aAtt.selected == true){ //called if attachment is selected
                 //Attachment a = [Select Id, Name, BodyLength, Body, Description, ContentType From Attachment WHERE Id=:aAtt.att.Id];
                 if(aAtt.att != null){
@@ -380,14 +416,57 @@ public class EmailAttachments{
 			selectedAttach = [Select Id, Name, BodyLength, Body, Description, ContentType From Attachment WHERE Id IN :selectedAttachID];
         }
         if(selectedContentID != null){
-            selectedContent = [SELECT Id, Title, VersionData, PathOnClient, FileType, Description FROM ContentVersion WHERE Id IN :selectedContentID];
+            for(Id i : selectedContentID){
+                ContentVersion c = [SELECT Id, Title, ContentSize, PathOnClient, FileType, Description FROM ContentVersion WHERE Id=:i];
+                if(c.ContentSize > 3145728){
+                    ContentDistribution tempDist = new ContentDistribution();
+                    Date expDate = date.today();
+                    expDate = expDate.addDays(5);
+                    tempDist.ExpiryDate = expDate;
+                    tempDist.Name = 'Sharing Link till ' + expDate;
+                    //tempDist.ContentDocumentId = ''; //this needs to be the parent document ID
+                    tempDist.ContentVersionId = c.Id;
+                    tempDist.PreferencesAllowOriginalDownload = true;
+                    tempDist.PreferencesAllowPDFDownload = true;
+                    tempDist.PreferencesAllowViewInBrowser = true;
+                    tempDist.PreferencesExpires = true;
+                    insert tempDist;
+                    String ContentSizeFormatted = '';
+                    if((c.ContentSize < 1024) && (c.ContentSize > 0)){ //selected attachment with byte size <1000 and >0, then controller.checkSize()
+                        ContentSizeFormatted = c.ContentSize + ' B';
+                    }
+                    else if(c.ContentSize < 1048576){
+                        Decimal CS = c.ContentSize / 1024;
+                        ContentSizeFormatted = CS + ' KB';
+                    }
+                    else if(c.ContentSize < 1073741824){ //selected attachment with byte size <24000000 and >1000000, then controller.checkSize()
+                        Decimal CS = c.ContentSize / 1048576;
+                        ContentSizeFormatted = CS + ' MB';
+                    }
+                    
+                    List<ContentDistribution> urlList = [SELECT Id, DistributionPublicUrl FROM ContentDistribution WHERE Id=:tempDist.Id LIMIT 1];
+                    String theURL = urlList[0].DistributionPublicUrl;
+                    aDist thisDist = new aDist(tempDist, c.Title, theURL, ContentSizeFormatted);
+                    linkList.add(thisDist);
+                }
+                else{
+                    ContentVersion c2 = [SELECT Id, Title, VersionData, ContentSize, PathOnClient, FileType, Description FROM ContentVersion WHERE Id=:i];
+                    if(c2.FileType == 'SNOTE' ){
+                        Blob cData = c2.VersionData;
+                        String noteString = cData.toString();
+                        c2.VersionData = Blob.toPdf(noteString);
+                    }
+                    selectedContent.add(c2);
+                }
+            }
+            /*selectedContent = [SELECT Id, Title, VersionData, PathOnClient, FileType, Description FROM ContentVersion WHERE Id IN :selectedContentID];
             for (ContentVersion c : selectedContent){
                 if(c.FileType == 'SNOTE' ){
                     Blob cData = c.VersionData;
                     String noteString = cData.toString();
                     c.VersionData = Blob.toPdf(noteString);
                 }
-            }
+            }*/
         }
         
         //here is where we query the market lists for distribution
@@ -430,7 +509,7 @@ public class EmailAttachments{
             noteBody = noteBody + 'Email Body:\n No Email Body was provided \n';
             noteAttach = noteAttach + 'Email Body:<br /> No Email Body was provided <br />';
         }
-        if(!(selectedAttach.isEmpty())){
+        if((!(selectedAttach.isEmpty())) || !(selectedContent.isEmpty())){
             noteBody = noteBody + 'The following attachments were also included with this email:\n';
             noteAttach = noteAttach + 'The following attachments were also included with this email:<br />';
         }
@@ -476,6 +555,10 @@ public class EmailAttachments{
             noteBody = noteBody + fName + '\n';
             noteAttach = noteAttach + fName + '<br />';
         }
+        for(aDist ad : linkList){
+            noteBody = noteBody + ad.fName + ' (Download Link) \n';
+            noteAttach = noteAttach + ad.fName + ' (Download Link) <br />';
+        }
         String subjectLine = '';
         if((targetSubject != null) && (targetSubject != '')){ //this is called as long as targetSubject is set to text 
             subjectLine = targetSubject;
@@ -512,16 +595,28 @@ public class EmailAttachments{
         mail.setReplyTo('success@clearrisk.com'); //this needs to be updated with an overall email, or via if statement.
         mail.setSenderDisplayName('ClearRisk Claims Management');
         
-        String body = 'This is a notification that you have been sent the following attachments for Claim #' + claim.Name +'<br /><br />';
+        String body = 'This is a notification that you have been sent the following attachments for Claim #' + claim.Name +'.<br /><br />';
+        if(targetBody != null){
+            body = body + 'The sender has included the following message with this email:<br /><br />' + targetBody + '<br /><br />';
+        }
+        else{
+            body = body + 'The sender has not included and additional details with this email.<br /><br />';
+        }
+            
+            
+        if(linkList != null){
+            Date expDate = date.today();
+            expDate = expDate.addDays(5);
+            body = body + 'The following attachments exceeded the maximum file size for inclusion in this email. Please click on the attachment link to download this attachment. This link will be active for 5 days (until ' + expDate + ')<br />';
+            for(aDist a : linkList){
+                body = body + '<a href="' + a.cdURL + '">' + a.fName + ' - ' + a.fSize +'</a><br />';
+            }
+            body = body + '<br /><br />';
+        }
         body = body + 'Regards,<br /><br />ClearRisk Team<br />ClearRisk<br />success@clearrisk.com<br />';
         //body = body + '<img src="https://s3.amazonaws.com/clearrisk.emailimages/superiorEnglish150x50.jpg">';
         
-        if(targetBody != null){ //want to set targetBody string
-            mail.setHtmlBody(targetBody);
-        }
-        else{
-            mail.setHtmlBody(body);
-        }
+        mail.setHtmlBody(body);
         
         mail.setFileAttachments(efaList);
         Messaging.sendEmail(new Messaging.SingleEmailMessage[]{mail});
@@ -623,11 +718,11 @@ public class EmailAttachments{
      
     public PageReference doEmail(){
         
-        List<Attachment> aList = new List<Attachment>();
+        //List<Attachment> aList = new List<Attachment>();
         
-        for(Attachment att : aList){
+        //for(Attachment att : aList){
             //do a thing
-        }
+        //}
         
         PageReference pr = new PageReference('/' + claim.Id);
         pr.setRedirect(true);

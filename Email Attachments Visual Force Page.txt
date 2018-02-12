@@ -41,11 +41,11 @@
         
         <apex:pageBlockSection title="Please select the attachments you would like to send." collapsible="false" rendered="{!disableBody}" columns="1">
             <p style="text-align:center; width : 100%;font-size: 16px; font-weight: bold ;">
-            Please note that if an attachment is more than 4 Megabytes (MB) a link to download the attachment will be included instead.
+            Please note that if an attachment is more than 3 Megabytes (MB) a link to download the attachment will be included instead.
             </p>
             <!-- <p style="text-align:center; width : 100%;font-size: 16px; font-weight: bold ;"> -->
-            <!-- <apex:outputText id="sizer" value="The total attachment size for this email is: {!totalSize2} {!totalSizeType}" style="text-align:center; width : 100%;font-size: 16px; font-weight: bold ;"></apex:outputText> -->
-            <!-- <apex:outputText id="sizer2" rendered="{!sizeError}" value="The total allowable attachment size for this email has been exceeded" style="text-align:center; width : 100%;font-size: 16px; font-weight: bold ; color:red;"></apex:outputText> -->
+            <apex:outputText id="sizer" value="The total attachment size for this email is: {!totalSize2} {!totalSizeType}" style="text-align:center; width : 100%;font-size: 16px; font-weight: bold ;"></apex:outputText>
+            <apex:outputText id="sizer2" rendered="{!sizeError}" value="The total allowable attachment size (50 MB) for this email has been exceeded, please deselect attachments to bring your email size under 50 MB." style="text-align:center; width : 100%;font-size: 16px; font-weight: bold ; color:red;"></apex:outputText>
             <!-- </p> -->
         
         
@@ -56,19 +56,20 @@
                     <apex:facet name="header">
                         <apex:inputCheckbox id="checkAllBox" value="{!selectAll}"> Select All
                         <apex:actionSupport event="onchange" onsubmit="toggleCheckAll(this)"/>
-                            <!-- <apex:actionSupport event="onchange" action="{!checkSize}" onsubmit="toggleCheckAll(this)"/> -->
+                           <apex:actionSupport event="onchange" action="{!checkSize}" onsubmit="toggleCheckAll(this)"/>
                         </apex:inputCheckbox>
                     </apex:facet>
                     <!-- This is our selected Boolean property in our wrapper class -->
                     <apex:inputCheckbox value="{!attach.selected}" styleClass="selectInput">
                     <apex:actionSupport event="onchange"/>
-                        <!-- <apex:actionSupport event="onchange" action="{!checkSize}"/> -->
+                        <apex:actionSupport event="onchange" action="{!checkSize}"/>
                     </apex:inputCheckbox>
                 </apex:column>
                 <!-- This is how we access the ttachment values within out aAttachment container/wrapper -->
                 <apex:column value="{!attach.FileName}" headerValue="File Name" />
                 <apex:column value="{!attach.FileDescription}" headerValue="File Description"/>
                 <apex:column value="{!attach.FileType}" headerValue="File Type" />
+                <apex:column value="{!attach.ContentSizeFormatted}" headerValue="File Size" />
             </apex:pageBlockTable>
             <apex:outputLabel rendered="{!renderAttachmentSelect}"><b>Attachments Selected: <br /></b></apex:outputLabel>
             <apex:pageBlockTable rendered="{!renderAttachmentSelect}" value="{!attachList2}" var="attach" cellpadding="5px" border="1" id="table2">
@@ -76,6 +77,7 @@
                 <apex:column value="{!attach.FileName}" headerValue="File Name" />
                 <apex:column value="{!attach.FileDescription}" headerValue="File Description"/>
                 <apex:column value="{!attach.FileType}" headerValue="File Type" />
+                <apex:column value="{!attach.ContentSizeFormatted}" headerValue="File Size" />
             </apex:pageBlockTable>
         </apex:pageBlockSection>
         
